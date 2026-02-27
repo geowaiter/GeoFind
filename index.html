@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoFIND Analytics // Systems</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --bg: #000000; 
+            --surface: #0a0a0a; 
+            --border: #1a1a1a;
+            --gold: #c5a059; 
+            --text: #ffffff; 
+            --muted: #666666;
+            --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+        
+        body { 
+            margin: 0; 
+            font-family: var(--font); 
+            background: var(--bg); 
+            color: var(--text); 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden;
+        }
+        
+        header { 
+            padding: 20px 40px; 
+            border-bottom: 1px solid var(--border); 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: var(--surface);
+        }
+
+        .logo { 
+            font-size: 13px; 
+            letter-spacing: 5px; 
+            font-weight: 300; 
+            text-transform: uppercase; 
+            color: var(--gold); 
+        }
+
+        .session-status { 
+            font-size: 10px; 
+            color: var(--muted); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; }
+
+        .layout { display: flex; flex: 1; overflow: hidden; }
+        
+        nav { 
+            width: 260px; 
+            border-right: 1px solid var(--border); 
+            padding: 40px 0; 
+            background: var(--surface);
+        }
+
+        .nav-link { 
+            width: 100%; 
+            padding: 18px 40px; 
+            background: none; 
+            border: none; 
+            color: var(--muted); 
+            text-align: left; 
+            cursor: pointer; 
+            font-size: 11px; 
+            letter-spacing: 2px; 
+            text-transform: uppercase;
+            transition: 0.3s; 
+        }
+
+        .nav-link.active { color: var(--gold); border-right: 2px solid var(--gold); }
+        .nav-link:hover:not(.active) { color: var(--text); }
+
+        main { flex: 1; padding: 40px; overflow-y: auto; display: flex; flex-direction: column; gap: 30px; }
+        
+        .view { display: none; flex-direction: column; gap: 25px; height: 100%; }
+        .view.active { display: flex; }
+        
+        .panel { background: var(--surface); border: 1px solid var(--border); padding: 30px; }
+        
+        .controls { display: grid; grid-template-columns: 1fr 1fr auto; gap: 20px; align-items: flex-end; }
+        
+        .field { display: flex; flex-direction: column; gap: 10px; }
+        
+        label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; font-weight: 600; }
+        
+        input { 
+            background: transparent; 
+            border: 1px solid var(--border); 
+            color: var(--text); 
+            padding: 14px; 
+            font-size: 12px; 
+            border-radius: 0;
+            transition: border-color 0.3s;
+        }
+
+        input:focus { border-color: var(--gold); outline: none; }
+        
+        button.action { 
+            background: var(--gold); 
+            color: #000; 
+            border: none; 
+            padding: 14px 35px; 
+            font-size: 10px; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            cursor: pointer; 
+            letter-spacing: 2px; 
+            transition: opacity 0.3s;
+        }
+
+        button.action:hover { opacity: 0.8; }
+
+        #map { flex: 1; border: 1px solid var(--border); min-height: 400px; filter: grayscale(1) invert(0.92) contrast(1.1); }
+        
+        /* Split View Styles */
+        .split-container { 
+            display: grid; 
+            grid-template-columns: 1.2fr 0.8fr; 
+            gap: 25px; 
+            flex: 1;
+            min-height: 400px;
+        }
+
+        .data-card { 
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden;
+        }
+
+        .data-header { 
+            padding: 15px 20px; 
+            border-bottom: 1px solid var(--border); 
+            font-size: 9px; 
+            letter-spacing: 2px; 
+            color: var(--gold); 
+            text-transform: uppercase; 
+            font-weight: 600;
+        }
+
+        .scroll-area { flex: 1; overflow-y: auto; }
+
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 10px; color: var(--muted); padding: 15px 20px; border-bottom: 1px solid var(--border); font-weight: 400; text-transform: uppercase; letter-spacing: 1px; }
+        td { padding: 15px 20px; font-size: 12px; border-bottom: 1px solid var(--border); color: #ccc; }
+
+        .raw-output { 
+            background: #050505; 
+            color: #555; 
+            font-family: "SF Mono", "Consolas", monospace; 
+            font-size: 11px; 
+            padding: 20px; 
+            white-space: pre-wrap; 
+            line-height: 1.6;
+        }
+
+        #overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0,0,0,0.85); 
+            display: none; 
+            place-items: center; 
+            z-index: 1000; 
+            backdrop-filter: blur(3px); 
+        }
+
+        .loader { 
+            width: 25px; 
+            height: 25px; 
+            border: 1px solid var(--gold); 
+            border-top-color: transparent; 
+            border-radius: 50%; 
+            animation: rot 1s linear infinite; 
+        }
+
+        @keyframes rot { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">GeoFIND // Analytics</div>
+        <div class="session-status">
+            <div class="status-dot"></div>
+            System Integrity: Verified
+        </div>
+    </header>
+
+    <div class="layout">
+        <nav>
+            <button class="nav-link active" onclick="setView('location')">Location Analysis</button>
+            <button class="nav-link" onclick="setView('identity')">Identity Verification</button>
+        </nav>
+
+        <main>
+            <div id="location" class="view active">
+                <div class="panel">
+                    <div class="controls">
+                        <div class="field">
+                            <label>Network Identifier</label>
+                            <input type="text" id="ip" placeholder="0.0.0.0">
+                        </div>
+                        <div class="field">
+                            <label>Visual Resource</label>
+                            <input type="file" id="image">
+                        </div>
+                        <button class="action" onclick="analyzeGeo()">Synchronize</button>
+                    </div>
+                </div>
+                <div id="map"></div>
+            </div>
+
+            <div id="identity" class="view">
+                <div class="panel">
+                    <div class="controls" style="grid-template-columns: 1fr auto;">
+                        <div class="field">
+                            <label>Account Reference (Email Address)</label>
+                            <input type="text" id="email" placeholder="reference@example.com">
+                        </div>
+                        <button class="action" onclick="verifyIdentity()">Query Repository</button>
+                    </div>
+                </div>
+
+                <div class="split-container" id="identity-output" style="display: none;">
+                    <div class="data-card">
+                        <div class="data-header">Synchronized Records</div>
+                        <div class="scroll-area" id="table-box"></div>
+                    </div>
+                    <div class="data-card">
+                        <div class="data-header">System Manifest</div>
+                        <div class="scroll-area">
+                            <div class="raw-output" id="raw-box"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="overlay"><div class="loader"></div></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const API = "http://127.0.0.1:5000/api";
+        let map;
+
+        window.onload = () => {
+            map = L.map('map', {zoomControl: false, attributionControl: false}).setView([20, 0], 2);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+        };
+
+        function setView(v) {
+            document.querySelectorAll('.view, .nav-link').forEach(el => el.classList.remove('active'));
+            document.getElementById(v).classList.add('active');
+            event.currentTarget.classList.add('active');
+            if(v === 'location') setTimeout(() => map.invalidateSize(), 100);
+        }
+
+        async function analyzeGeo() {
+            const file = document.getElementById('image').files[0];
+            const ip = document.getElementById('ip').value;
+            const overlay = document.getElementById('overlay');
+            
+            overlay.style.display = 'grid';
+            try {
+                let res;
+                if(file) {
+                    const b64 = await new Promise(r => {
+                        const reader = new FileReader();
+                        reader.onload = () => r(reader.result.split(',')[1]);
+                        reader.readAsDataURL(file);
+                    });
+                    res = await fetch(`${API}/image_geo`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({image_data: b64})
+                    });
+                } else {
+                    res = await fetch(`${API}/geo`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({target: ip})
+                    });
+                }
+                const d = await res.json();
+                map.flyTo([d.lat, d.lon], 11);
+                L.circleMarker([d.lat, d.lon], {
+                    radius: 8, 
+                    color: '#c5a059', 
+                    weight: 1, 
+                    fillColor: '#c5a059', 
+                    fillOpacity: 0.4
+                }).addTo(map);
+            } catch(e) { console.error(e); }
+            overlay.style.display = 'none';
+        }
+
+        async function verifyIdentity() {
+            const email = document.getElementById('email').value;
+            const output = document.getElementById('identity-output');
+            const tableBox = document.getElementById('table-box');
+            const rawBox = document.getElementById('raw-box');
+            const overlay = document.getElementById('overlay');
+            
+            if(!email) return;
+            
+            overlay.style.display = 'grid';
+            output.style.display = 'none';
+
+            try {
+                const r = await fetch(`${API}/breach`, {
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email})
+                });
+                const d = await r.json();
+                
+                let html = '<table><thead><tr><th>Repository</th><th>Identifier</th><th>Status</th></tr></thead><tbody>';
+                if(d.breach_data && d.breach_data.length > 0) {
+                    d.breach_data.forEach(row => {
+                        html += `<tr>
+                            <td>${row.source}</td>
+                            <td>${row.email}</td>
+                            <td style="color:var(--gold)">${row.password || 'Verified'}</td>
+                        </tr>`;
+                    });
+                } else {
+                    html += '<tr><td colspan="3" style="text-align:center; padding:60px; color:var(--muted)">No associated data located.</td></tr>';
+                }
+                html += '</tbody></table>';
+                
+                tableBox.innerHTML = html;
+                rawBox.innerText = JSON.stringify(d, null, 4);
+                output.style.display = 'grid';
+                
+            } catch(e) { 
+                console.error(e); 
+            } finally {
+                overlay.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
