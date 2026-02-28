@@ -2,7 +2,7 @@ import subprocess
 import sys
 
 def setup():
-    pkgs = ["flask", "flask-cors", "requests", "Pillow", "cryptography", "torch", "torchvision", "geoclip"]
+    pkgs = ["flask", "flask-cors", "requests", "Pillow", "torch", "torchvision", "geoclip"]
     
     print("\nGeoFIND // System Setup\n" + "-"*30)
     print(f"Installing: {', '.join(pkgs)}")
